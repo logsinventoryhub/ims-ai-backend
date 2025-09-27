@@ -36,7 +36,7 @@ def chat():
         response = client.chat.completions.create(
             model="gpt-4-1106-preview",
             messages=[
-                {"role": "system", "content": "You are a helpful inventory assistant."},
+                {"role": "system", "content": "You are a helpful AI assistant for general queries."},
                 {"role": "user", "content": user_message}
             ]
         )
@@ -45,56 +45,62 @@ def chat():
     except Exception as e:
         return jsonify({'reply': f'⚠️ Error: {str(e)}'}), 500
 
-@app.route('/analyze-inventory', methods=['POST'])
-def analyze_inventory():
-    """
-    Returns high-level AI-generated insights from full inventory data.
-    Payload: { products, sales_orders, purchase_orders, token }
-    """
-    data = request.get_json()
-    products = data.get('products', [])
-    sales_orders = data.get('sales_orders', [])
-    purchase_orders = data.get('purchase_orders', [])
-    token = data.get('token', '')
-
-    # Optionally validate token here...
-
-    try:
-        insight = generate_inventory_insight(products, sales_orders, purchase_orders)
-        return jsonify({'insight': insight})
-    except Exception as e:
-        return jsonify({'insight': f'⚠️ Error analyzing data: {str(e)}'}), 500
-
 @app.route('/ask-inventory', methods=['POST'])
 def ask_inventory():
     """
     User sends a natural-language question with inventory data.
     AI responds based strictly on that data.
-    Payload: { user_message, products, sales_orders, purchase_orders }
+    Payload: {
+      user_message,
+      products,
+      sales_orders,
+      purchase_orders,
+      suppliers,
+      customers,
+      locations,
+      categories
+    }
     """
     data = request.get_json()
     user_message = data.get('user_message', '').strip()
-    products = data.get('products', [])
-    sales_orders = data.get('sales_orders', [])
-    purchase_orders = data.get('purchase_orders', [])
 
     if not user_message:
         return jsonify({'reply': '❌ Please include your question.'}), 400
 
+    products = data.get('products', [])
+    sales_orders = data.get('sales_orders', [])
+    purchase_orders = data.get('purchase_orders', [])
+    suppliers = data.get('suppliers', [])
+    customers = data.get('customers', [])
+    locations = data.get('locations', [])
+    categories = data.get('categories', [])
+
     try:
-        prompt = (
-            "You are an inventory assistant. Answer the user's question based ONLY on the provided data.\n\n"
-            f"User's Question: {user_message}\n\n"
-            f"Products:\n{products}\n\n"
-            f"Sales Orders:\n{sales_orders}\n\n"
-            f"Purchase Orders:\n{purchase_orders}\n\n"
-            "Do not guess. If the answer cannot be found, say 'I do not have enough information.'"
-        )
+        prompt = f"""
+You are Logic, an AI Inventory Assistant. 
+Answer the user's question strictly using the provided dataset. 
+The response must be:
+- Concise, clear, and data-driven.
+- Well-structured (use Markdown tables, bullet points, or lists).
+- Avoid vague or combined text blocks.
+- If exact data is missing, say "I do not have enough information."
+
+User Question: {user_message}
+
+Dataset:
+Products: {products}
+Sales Orders: {sales_orders}
+Purchase Orders: {purchase_orders}
+Suppliers: {suppliers}
+Customers: {customers}
+Locations: {locations}
+Categories: {categories}
+"""
 
         response = client.chat.completions.create(
             model="gpt-4-1106-preview",
             messages=[
-                {"role": "system", "content": "You are an intelligent assistant trained on inventory data."},
+                {"role": "system", "content": "You are an intelligent assistant trained on structured inventory data."},
                 {"role": "user", "content": prompt}
             ]
         )
@@ -104,32 +110,4 @@ def ask_inventory():
     except Exception as e:
         return jsonify({"reply": f'⚠️ Error processing request: {str(e)}'}), 500
 
-
-def generate_inventory_insight(products, sales_orders, purchase_orders):
-    """
-    Generates an overall summary from raw data using OpenAI.
-    """
-    prompt = (
-        "You are an AI inventory analyst. Analyze the following inventory dataset and provide:\n"
-        "- Total products\n"
-        "- Sales and purchasing trends\n"
-        - "Top-selling items (based on quantity_sold)\n"
-        "- Low-stock or stock-alert items\n"
-        "- Suggestions on what to restock\n"
-        "- Any anomalies or insights\n\n"
-        f"Products:\n{products}\n\n"
-        f"Sales Orders:\n{sales_orders}\n\n"
-        f"Purchase Orders:\n{purchase_orders}"
-    )
-
-    response = client.chat.completions.create(
-        model="gpt-4-1106-preview",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant that provides inventory summaries and insights."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-
-    return response.choices[0].message.content
-
-# No app.run() — managed by Render or Gunicorn
+# No app.run()
