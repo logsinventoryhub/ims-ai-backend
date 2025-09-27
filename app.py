@@ -128,6 +128,30 @@ def call_openai(prompt: str) -> dict:
 
 
 # ==========================
+# HELPER: Greeting Detector
+# ==========================
+def is_greeting(message: str) -> bool:
+    """
+    Detect if message is a greeting.
+    """
+    greetings = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
+    return message.lower() in greetings
+
+
+def greeting_response() -> dict:
+    """
+    Standard greeting response.
+    """
+    return {
+        "sender": "bot",
+        "title": "👋 Hello!",
+        "sections": [
+            {"type": "note", "text": "Hi there! How can I assist you with your inventory today?"}
+        ]
+    }
+
+
+# ==========================
 # ROUTES
 # ==========================
 @app.route('/chat', methods=['POST'])
@@ -146,6 +170,9 @@ def chat():
                 {"type": "note", "text": "❌ No message received."}
             ]
         }), 400
+
+    if is_greeting(user_message):
+        return jsonify(greeting_response())
 
     prompt = build_prompt(user_message, mode="general")
     reply_json = call_openai(prompt)
@@ -168,6 +195,9 @@ def ask_inventory():
                 {"type": "note", "text": "❌ Please include your question."}
             ]
         }), 400
+
+    if is_greeting(user_message):
+        return jsonify(greeting_response())
 
     # Dataset context
     context = json.dumps({
